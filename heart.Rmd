@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "Project 2 Exploratory Data Analysis"
 author: "A. Nguyen, B. Waite"
@@ -183,3 +184,114 @@ kable(table(target))
 ```
 
 
+=======
+---
+title: "Project 2 Exploratory Data Analysis"
+author: "A. Nguyen, B. Waite"
+date: "7/17/2019"
+output: html_document
+---
+
+Read in the data: 
+```{r}
+library(readr)
+library(knitr)
+library(kableExtra)
+
+#Requires setwd() to the current directory with heart.csv
+heart <- read_csv("heart.csv")
+```
+
+Get summary statistics: 
+```{r}
+summary(heart) 
+attach(heart)
+```
+
+Variable names and meanings pulled from the source website: https://archive.ics.uci.edu/ml/datasets/Heart+Disease
+```{r}
+
+vartable = as.data.frame(names(heart))
+vartable$description = c("Age","Sex","Chest Pain Type","Resting Blood Pressure at Admission","Serum Cholesterol","Fasting Blood Sugar > 120 mg/dl","Resting Electrocardiographic Results","Maximum Heart Rate Achieved","Exercised Induced Angina", 
+                         "Stress Test Depression Induced by exercise relative to rest", "The Slope of the Peak Exercise Stress Test Segment","Number of Major Vessels Colored by Flouroscopy", "Severity of Defect","Diagnosis of Heart Disease")
+vartable$typeOrUnits = c("Years", "1 = Male;0 = Female", "1 = Typical Angina, 2 = Atypical Angina, 3 = Non-Anginal Pain, 4 = Asymptomatic", "mmHg","mg/dl","1 = true; 0 = false","0 = Normal, 1 = Having Stress Test T-Wave Abnormality, 2 = Showing Probable or Definite left ventricular hypertrophy","Beats Per Minute (BPM)","1 = Yes; 0 = No","Unknown","1 = Upsloping, 2 = Flat, 3 = Downsloping","0-3","3 = normal; 6 = fixed defect; 7 = reversable defect","0 = No Heart Disease Diagnosed; 1 = Heart Disease Diagnosed")
+vartable$usage = "Predictor"
+vartable$usage[14] = "Response"
+names(vartable) = c("Variable","Description","Units or Value","Usage")
+kable(vartable) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+Some interesting breakdowns: 
+
+```{r}
+#Age distribution
+hist(age)
+
+#Heart Disease or not by Age
+boxplot(age~target, main = "Heart Disease or Not by Age")
+
+
+#Sex breakdown
+kable(table(sex))
+
+
+#Chest pain breakdown
+kable(table(cp))
+```
+
+Interesting to note here that Chest Pain is listed in the data description as values 1-4, but here is 0-3. We can probably just adjust the description. 
+
+```{r}
+#Histogram of trestbps
+hist(trestbps)
+
+#Boxplot of trestbps by response
+boxplot(trestbps~target, main = "Heart Disease or Not by trestbps")
+
+#Histogram of chol
+hist(chol)
+
+#Boxplot of chol vs response
+boxplot(chol~target, main = "Heart Disease or Not by chol")
+
+#Values of fbs in the data set
+kable(table(fbs))
+
+#Values of restecg in the data set
+kable(table(restecg))
+
+#Histogram of thalach
+hist(thalach)
+
+#Boxplot of thalach against response
+boxplot(thalach~target)
+#Some good differentiation here
+
+#Values of exang in the data
+kable(table(exang))
+
+#Histogram of oldpeak
+hist(oldpeak)
+#Some strong right skew here that may need to be addressed if we use this as a continuous variable. And I think we should initially. 
+
+#Boxplot of oldpeak
+boxplot(oldpeak~target, main = "Heart Disease or Not vs oldpeak")
+
+#Values of slope occuring
+kable(table(slope))
+
+#Values of ca occuring
+kable(table(ca))
+
+#Values of thal occuring
+kable(table(thal))
+
+#Distribution of the target response seems roughly 50-50
+kable(table(target))
+
+```
+
+
+>>>>>>> 9806163d46d3100990c0718c930cd4294e2a3c9c
