@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 ---
 title: "Project 2 Exploratory Data Analysis"
 author: "A. Nguyen, B. Waite"
@@ -293,5 +293,66 @@ kable(table(target))
 
 ```
 
+##Let's try to do some PCA: 
 
->>>>>>> 9806163d46d3100990c0718c930cd4294e2a3c9c
+Get the continuous variables
+```{r}
+heartcont = heart[,c('age','trestbps','chol','thalach','oldpeak')]
+pairs(heartcont, panel = panel.smooth)
+```
+
+
+Looking at these plots, there does not seem to be much correlation between the continuous variables. The heatmap below seems to confirm this. 
+
+```{r}
+library(gplots)
+my.cor2 = cor(heartcont)
+heatmap.2(my.cor2,col=redgreen(75), 
+          density.info="none", trace="none", dendrogram=c("both"), 
+          symm=F,symkey=T,symbreaks=T, scale="none",key=T)
+
+cov(heartcont)
+```
+
+Looking at Principal Components with scaling (using the correlation values vice the covariance values). 
+
+```{r}
+pcomps = prcomp(heartcont,scale. = TRUE)
+pcscores = pcomps$x
+pairs(pcscores, panel = panel.smooth)
+```
+
+There do not seem to be any correlations in the Principal Components. Let's try to produce the Scree / Cumulative Proportion Plots: 
+
+```{r}
+par(mfrow=c(1,2))
+eigenvals<-(pcomps$sdev)^2
+plot(1:5,eigenvals/sum(eigenvals),type="l",main="Scree Plot",ylab="Prop. Var. Explained", ylim = c(0,.4))
+cumulative.prop<-cumsum(eigenvals/sum(eigenvals))
+plot(1:5,cumulative.prop,type="l",main="Cumulative proportion")# ,ylim=c(0,1))
+par(mfrow=c(1,1))
+```
+
+It looks like from the above plot, that approximately 90% of the variability can be explained using 4 principal components. It does appear, though that all 5 continue to contribute to the model which is consistent with our earlier assessment that there is not significant correlation among the predictors. 
+
+```{r}
+pcscores = data.frame(pcscores)
+ggplot(data = pcscores, aes(x = PC1, y = PC2)) +
+  geom_point(aes(col=target), size=1)+
+  ggtitle("PCA of Heart Disease Data")
+
+heartcont$target = as.factor(heart$target)
+
+#pairs on variables grouped by target
+library(GGally)
+ggpairs(heartcont, columns=1:5, aes(color=target)) + 
+  ggtitle("Heart Disease Data Grouped by Target (Diagnosis)")
+
+#pairs on principal components grouped by target
+pcscores$target = as.factor(heart$target)
+ggpairs(pcscores, columns=1:5, aes(color=target)) + 
+  ggtitle("Heart Disease Data Grouped by Target (Diagnosis)")
+
+```
+
+Running a number of PCA charts coded by response does not appear to show a clean discriminant that we can use to do regression on the Principal Components. Principal component 1 (PC1) does show some ability to distinguish, but there is still significant overlap. 
