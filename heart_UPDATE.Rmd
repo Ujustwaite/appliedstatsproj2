@@ -28,6 +28,17 @@ library(GGally)
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
 
+#Convert the categorical variables to factors
+heart$sex = as.factor(heart$sex)
+heart$cp = as.factor(heart$cp)
+heart$fbs = as.factor(heart$fbs)
+heart$restecg = as.factor(heart$restecg)
+heart$exang = as.factor(heart$exang)
+heart$slope = as.factor(heart$slope)
+heart$ca = as.factor(heart$ca)
+heart$thal = as.factor(heart$thal)
+heart$target = as.factor(heart$target)
+
 #Summary Statistcs
 sumstats = summary(heart)
 
@@ -79,6 +90,17 @@ hist(oldpeak)
 
 #log transform of oldpeak
 hist(log(oldpeak))
+```
+
+The maximum heart rate achieved during the stress test (thalach) also appears to be strongly correlated with the outcome of whether a patient will have heart disease or not. 
+
+```{r echo = FALSE, message = FALSE} 
+#Histogram of thalach
+hist(thalach)
+
+#Boxplot of thalach against response
+boxplot(thalach~target, main = "Maximum Heart Rate Achieved Grouped by Heart Disease or No", xlab = "Heart Disease Present", ylab = "Heart Rate in Beats Per Minute (BPM)")
+#Some good differentiation here
 ```
 
 ## Let's try to do some PCA: 
@@ -163,6 +185,48 @@ pcomps$rotation
 ```
 
 In looking at this table, we can see that each variable contributes a significant amount in at least one of the Principal Components. This is a good indication that the variables are not correlated with each other and that each might contribute something unique to our model. 
+
+# Prep for Analysis
+
+I considered doing a Train / Test split on the data, but think that we might try to do a k-fold cross validation of the model. In order to do that, we have to train the model first. 
+
+```{r echo = FALSE, message = FALSE}
+library(caret) 
+
+#define the training control method for the model
+train_control = trainControl(method = "cv", number = 10)
+
+#fit the simple model using all the variables
+simple_model = train(target~., data = heart, trControl = train_control, method = "glm", family = "binomial")
+print(simple_model)
+```
+
+and the coefficients: 
+
+```{r echo = FALSE, message = FALSE}
+simple_model$finalModel
+```
+
+Note that we didn't do any feature selection here, so let's try to add that in with Stepwise AIC based feature selection: 
+
+```{r echo = FALSE, message = FALSE}
+#This line makes a lot of output when knitted
+simple_model_stepwise = train(target~., data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+
+simple_model_stepwise$finalModel$coefficients
+
+simple_model_stepwise$results
+```
+
+Just to try another selection algorithm, used "LogitBoost" from the Caret library. It doesn't consistently outperform the simpler stepwise selection or "all-in" methods. We haven't learned the interpretation for this model.  
+
+```{r echo = FALSE, message = FALSE}
+simple_model_boost = train(target~., data = heart, trControl = train_control, method = "LogitBoost", family = "binomial")
+
+simple_model_boost$finalModel
+
+simple_model_boost$results
+```
 
 
 # Appendix A: 
