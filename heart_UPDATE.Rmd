@@ -193,18 +193,37 @@ I considered doing a Train / Test split on the data, but think that we might try
 ```{r echo = FALSE, message = FALSE}
 library(caret) 
 
-#define the training control method for the model
+#define the training control method for the model -- This is the cross validation. 
 train_control = trainControl(method = "cv", number = 10)
 
 #fit the simple model using all the variables
 simple_model = train(target~., data = heart, trControl = train_control, method = "glm", family = "binomial")
-print(simple_model)
+
 ```
 
 and the coefficients: 
 
 ```{r echo = FALSE, message = FALSE}
 simple_model$finalModel
+```
+
+Run the Hosmer / Lemeshow GOF test on the simple model: 
+
+```{r}
+#bring in model software
+library(ResourceSelection)
+hoslem.test(heart$target, fitted(simple_model), g = 10)
+```
+
+Get the odds ratio and confidence intervals for the simple model
+```{r}
+
+#odds ratio and confidence interval for the odds ratio
+exp(cbind("Odds ratio" = coef(simple_model$finalModel), confint.default(simple_model$finalModel, level = 0.95)))
+
+#Variance Inflation Factor (VIF)
+vif(simple_model$finalModel)
+
 ```
 
 Note that we didn't do any feature selection here, so let's try to add that in with Stepwise AIC based feature selection: 
