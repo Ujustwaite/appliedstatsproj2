@@ -22,6 +22,8 @@ A brief summary of the variables contained in the data is available in the table
 library(readr)
 library(knitr)
 library(kableExtra)
+library(car)
+library(gplots)
 library(ggplot2)
 library(GGally)
 
@@ -45,6 +47,10 @@ sumstats = summary(heart)
 #Dataset Structure
 datastructure = str(heart)
 attach(heart)
+
+#Set Reference group to be no heart disease
+heart$target <- relevel(heart$target, ref = "0")
+
 ```
 
 
@@ -65,14 +71,17 @@ kable(vartable) %>%
 Some interesting breakdowns / observations contained within the data:
 
 * The age range in the data set is from 29 to 77 years old. Age distribution is normal. 
-* There are 303 total participants.  207 Male and 96 Female. 
-* A general contingency table of Sex by Target (diagnosed with cardiac disease) shows: 
+* There are 303 total participants.  207 Male and 96 Female.
+* Nearly balanced response samples: 138 no heart disease vs 165 with heart disease.
+* General contingency tables of Sex by Target (diagnosed with cardiac disease) shows:
+  * Proportion of female with heart disease is greater than proportion of male with heart disease
 
 ```{r echo = FALSE}
-table(sex,target)
+ftable(addmargins(table(sex,target)))
+prop.table(table(sex,target),2)
 ```
 
-* In examining the histogram for Cholestorol values, we can see that there is at least one outlier with a value near 600 mg/dl. We might want to explore this further. 
+* In examining the histogram for Cholestorol values, we can see that there is at least one outlier with a value of 564 mg/dl (*observation 303: 67 year old female*). We might want to explore this further. 
 * The oldpeak variable also shows some diferentiation in the outcome of having heart disease. 
 
 ```{r echo = FALSE}
@@ -99,12 +108,87 @@ The maximum heart rate achieved during the stress test (thalach) also appears to
 hist(thalach)
 
 #Boxplot of thalach against response
-boxplot(thalach~target, main = "Maximum Heart Rate Achieved Grouped by Heart Disease or No", xlab = "Heart Disease Present", ylab = "Heart Rate in Beats Per Minute (BPM)")
+boxplot(thalach~target, main = "Maximum Heart Rate Achieved Grouped by Heart Disease or No", xlab = "Heart Disease Present", ylab = "Heart Rate in Beats Per Minute (BPM)", col = c("blue","red"))
 #Some good differentiation here
 ```
 
-## Let's try to do some PCA: 
+Visualizing the Relationships between Response and Categorical Predictors through Stacked Bargraphs
 
+```{r Visualization of Categorical Variables, echo = FALSE}
+# Sex
+plot(target~sex, main = "Heart Disease by Sex", xlab = "Sex", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Chest Pain
+plot(target~cp, main = "Heart Disease by Chest Pain", xlab = "Chest Pain", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Fasting Blood Sugar
+plot(target~fbs, main = "Heart Disease by Fasting Blood Sugar", xlab = "Fasting Blood Sugar (fbs)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Resting Electrocardiogram Result
+plot(target~restecg, main = "Heart Disease by Resting Electrocardiogram Result", xlab = "Resting Electrocardiogram Result (restecg)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Exercised Induced Angina
+plot(target~exang, main = "Heart Disease by Exercised Induced Angina", xlab = "Exercised Induced Angina (exang)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Slope of ST Segment
+plot(target~slope, main = "Heart Disease by Slope of ST Segment", xlab = "Slope of ST Segment (slope)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Fluoroscopic Colored Vessels
+plot(target~ca, main = "Heart Disease by Fluoroscopic Colored Vessels", xlab = "Fluoroscopic Colored Vessels (ca)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+
+# Heart Defect Severity
+plot(target~thal, main = "Heart Disease by Heart Defect Severity", xlab = "Heart Defect Severity (thal)", ylab = "Heart Disease (Target)", col=c("blue","red"))
+```
+
+* Visualizations + additional contingency tables (Appendix B) show:
+  * positive correlation between chest pain (*cp*) and heart disease (*target*)
+  * possible negative correlation between exercise induced angina (*exang*) and heart disease (*target*)
+  * negative correlation between fluoroscopic colored vessels (*ca*) and heart disease (*target*)
+  * higher proportion of patients with defect level (*thal*) of 2 have heart disease while higher proportion of patients at other defect levels do not have heart disease [REQUIRES FURTHER INVESTIGATION]
+
+<br>
+
+Visualizing the Relationships between Response and Continuous Predictors through Boxplots
+
+```{r Visualization of Continuous Variables, echo = FALE}
+# Age
+plot(age~target, col=c("blue","red"), main = "Heart Disease by Age", xlab = "Heart Disease", ylab = "Age")
+
+# Resting Blood Pressure at Time of Admission
+plot(trestbps~target, col=c("blue","red"), main = "Heart Disease by Resting Blood Pressure", xlab = "Heart Disease", ylab = "Resting Blood Pressure (mmHg)")
+
+# Serum Cholesterol Level
+plot(chol~target, col=c("blue","red"), main = "Heart Disease by Serum Cholestrol", xlab = "Heart Disease", ylab = "Serum Cholestrol (mg/dL)")
+
+# Maximum Heart Rate Achieved
+plot(thalach~target, col=c("blue","red"), main = "Heart Disease by Maximum Heart Rate Achieved", xlab = "Heart Disease", ylab = "Maximum Heart Rate Achieved (bpm)")
+
+# ST Segment Depression
+plot(oldpeak~target, col=c("blue","red"), main = "Heart Disease by ST Segment Depression", xlab = "Heart Disease", ylab = "ST Segment Depression (oldpeak)")
+```
+
+<br>
+
+Visualize Correlation Patterns and Distributions of Continuous Variables
+``` {r Scatterplot Matrix w/ Histogram on Diagonal, echo = FALSE}
+# Scatterplot Matrix
+scatterplotMatrix(x = heart[,-c(2,3,6,7,9,11,12,13)],
+                  smooth = FALSE,
+                  regLine = list(method=lm, lty=1, lwd=2, col="black"),
+                  groups = target,
+                  col = c("blue", "red"))
+
+# Correlation Coefficients
+my.cor<-cor(heart[,-c(2,3,6,7,9,11,12,13,14)])
+
+# Heatmap to Visualize Correlations between continuous predictors
+heatmap.2(my.cor,col=redgreen(75), 
+          density.info="none", trace="none", dendrogram=c("row"), 
+          symm=F,symkey=T,symbreaks=T, scale="none")
+
+```
+
+## Let's try to do some PCA: 
 
 
 ```{r include = FALSE}
@@ -126,7 +210,7 @@ heatmap.2(my.cor2,col=redgreen(75),
 cov(heartcont)
 ```
 
-. 
+<br>
 
 ```{r echo = FALSE}
 #Looking at Principal Components with scaling (using the correlation values vice the covariance values)
@@ -193,18 +277,37 @@ I considered doing a Train / Test split on the data, but think that we might try
 ```{r echo = FALSE, message = FALSE}
 library(caret) 
 
-#define the training control method for the model
+#define the training control method for the model -- This is the cross validation. 
 train_control = trainControl(method = "cv", number = 10)
 
 #fit the simple model using all the variables
 simple_model = train(target~., data = heart, trControl = train_control, method = "glm", family = "binomial")
-print(simple_model)
+
 ```
 
 and the coefficients: 
 
 ```{r echo = FALSE, message = FALSE}
 simple_model$finalModel
+```
+
+Run the Hosmer / Lemeshow GOF test on the simple model: 
+
+```{r}
+#bring in model software
+library(ResourceSelection)
+hoslem.test(heart$target, fitted(simple_model), g = 10)
+```
+
+Get the odds ratio and confidence intervals for the simple model
+```{r}
+
+#odds ratio and confidence interval for the odds ratio
+exp(cbind("Odds ratio" = coef(simple_model$finalModel), confint.default(simple_model$finalModel, level = 0.95)))
+
+#Variance Inflation Factor (VIF)
+vif(simple_model$finalModel)
+
 ```
 
 Note that we didn't do any feature selection here, so let's try to add that in with Stepwise AIC based feature selection: 
@@ -334,6 +437,39 @@ Value 0: < 50% diameter narrowing
 Value 1: > 50% diameter narrowing (in any major vessel: attributes 59 through 68 are vessels)
 
 # Appendix B: Additional Exploratory Analysis Performed
+
+```{r include = FALSE}
+# General Contingency/Proportions Tables of Categorical Predictors on Response
+
+## Chest Pain & Heart Disease
+ftable(addmargins(table(cp,target)))
+prop.table(table(cp,target),2)
+
+## Fasting Blood Sugar & Heart Disease
+ftable(addmargins(table(fbs,target)))
+prop.table(table(fbs,target),2)
+
+## Resting ECG results & Heart Disease
+ftable(addmargins(table(restecg,target)))
+prop.table(table(restecg,target),2)
+
+## Exercise Induced Angina & Heart Disease
+ftable(addmargins(table(exang,target)))
+prop.table(table(exang,target),2)
+
+## Slope of ST Segment & Heart Disease
+ftable(addmargins(table(sex,target)))
+prop.table(table(sex,target),2)
+
+## Number of Flouroscopic Vessels & Heart Disease
+ftable(addmargins(table(ca,target)))
+prop.table(table(ca,target),2)
+
+## Severity of Heart Defect & Heart Disease
+ftable(addmargins(table(thal,target)))
+prop.table(table(thal,target),2)
+```
+
 
 ```{r include = FALSE}
 #Age distribution
