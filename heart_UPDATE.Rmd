@@ -26,6 +26,7 @@ library(car)
 library(gplots)
 library(ggplot2)
 library(GGally)
+library(caret)
 
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
@@ -150,7 +151,7 @@ plot(target~thal, main = "Heart Disease by Heart Defect Severity", xlab = "Heart
 
 Visualizing the Relationships between Response and Continuous Predictors through Boxplots
 
-```{r Visualization of Continuous Variables, echo = FALE}
+```{r Visualization of Continuous Variables, echo = FALSE}
 # Age
 plot(age~target, col=c("blue","red"), main = "Heart Disease by Age", xlab = "Heart Disease", ylab = "Age")
 
@@ -331,7 +332,37 @@ simple_model_boost$finalModel
 simple_model_boost$results
 ```
 
+Elasticnet: 
 
+```{r echo = FALSE, message = FALSE}
+
+#define the training control method for the model -- This is the cross validation. 
+train_control = trainControl(method = "cv", number = 10)
+
+#fit the simple model using all the variables
+simple_model_elastic = train(target~., data = heart, trControl = train_control, method = "glmnet", family = "binomial")
+
+#odds ratio and confidence interval for the odds ratio
+odds_ratio_elastic = exp(coef(simple_model_elastic$finalModel, simple_model_elastic$bestTune$lambda))
+odds_ratio_elastic
+
+```
+
+# More complex model
+
+```{r echo = FALSE, message = FALSE}
+
+
+#define the training control method for the model -- This is the cross validation. 
+train_control = trainControl(method = "cv", number = 10)
+
+#fit the complex model using all the variables and some guessed interaction terms
+#gives accuracy improvement
+complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glm", family = "binomial")
+
+#fit the complex model using all the variables and elasticnet selection. Does better than simple, but hit or miss as to whether better than our guessed fit. 
+complex_model_elasticnet = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+0.001) + slope + ca + thal + oldpeak*trestbps + oldpeak*age, data = heart, trControl = train_control, method = "glmnet", family = "binomial")
+```
 # Appendix A: 
 
 
