@@ -363,6 +363,20 @@ complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + 
 #fit the complex model using all the variables and elasticnet selection. Does better than simple, but hit or miss as to whether better than our guessed fit. 
 complex_model_elasticnet = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+0.001) + slope + ca + thal + oldpeak*trestbps + oldpeak*age, data = heart, trControl = train_control, method = "glmnet", family = "binomial")
 ```
+
+
+# LDA
+
+Let's run an LDA model on the continuous variables and see how the model performs: 
+
+```{r}
+#Run the LDA
+heart_lda = LinearDA(Data = as.data.frame(heartcont), selectedCols = c("age","trestbps", "chol", "thalach", "oldpeak", "target"), classCol = 6, cvType = "folds", nTrainFolds = 10, extendedResults = TRUE)
+
+#output the results
+heart_lda$ConfusionMatrixResults
+
+```
 # Appendix A: 
 
 
