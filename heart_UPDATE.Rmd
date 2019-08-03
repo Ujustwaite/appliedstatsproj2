@@ -27,6 +27,8 @@ library(gplots)
 library(ggplot2)
 library(GGally)
 library(caret)
+library(PredPsych)
+library(pROC)
 
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
@@ -180,12 +182,12 @@ scatterplotMatrix(x = heart[,-c(2,3,6,7,9,11,12,13)],
                   col = c("blue", "red"))
 
 # Correlation Coefficients
-my.cor<-cor(heart[,-c(2,3,6,7,9,11,12,13,14)])
+#my.cor<-cor(heart[,-c(2,3,6,7,9,11,12,13,14)])
 
 # Heatmap to Visualize Correlations between continuous predictors
-heatmap.2(my.cor,col=redgreen(75), 
-          density.info="none", trace="none", dendrogram=c("row"), 
-          symm=F,symkey=T,symbreaks=T, scale="none")
+# heatmap.2(my.cor,col=redgreen(75), 
+#          density.info="none", trace="none", dendrogram=c("row"), 
+#          symm=F,symkey=T,symbreaks=T, scale="none")
 
 ```
 
@@ -215,9 +217,12 @@ cov(heartcont)
 
 ```{r echo = FALSE}
 #Looking at Principal Components with scaling (using the correlation values vice the covariance values)
-pcomps = prcomp(heartcont,scale. = TRUE)
-pcscores = pcomps$x
+pcomps <- prcomp(heartcont, scale.= TRUE)
+pcscores <- pcomps$x
 pairs(pcscores, panel = panel.smooth)
+
+# checking correlation of PCs
+round(cor(pcscores),2)
 ```
 
 There do not seem to be any correlations in the Principal Components. Let's try to produce the Scree / Cumulative Proportion Plots: 
@@ -231,7 +236,7 @@ plot(1:5,cumulative.prop,type="l",main="Cumulative proportion")# ,ylim=c(0,1))
 par(mfrow=c(1,1))
 ```
 
-It looks like from the above plot, that approximately 90% of the variability can be explained using 4 principal components. It does appear, though that all 5 continue to contribute to the model which is consistent with our earlier assessment that there is not significant correlation among the predictors. 
+It looks like from the above plot, that 90.53% of the variability can be explained using 4 principal components. It does appear, though that all 5 continue to contribute to the model which is consistent with our earlier assessment that there is not significant correlation among the predictors. 
 
 ```{r echo = FALSE, message = FALSE}
 pcscores = data.frame(pcscores)
@@ -261,7 +266,7 @@ ggpairs(pcscores, columns=1:5, aes(color=target)) +
 
 ```
 
-Running a number of PCA charts coded by response does not appear to show a clean discriminant that we can use to do regression on the Principal Components. Principal component 1 (PC1) does show some ability to distinguish against PC2, but there is still significant overlap. This could mean that our logistic model will not perform super well. It could also mean that we just don't have very many continuous predictors and that the categorical predictors will really help us differentiate with interaction terms. 
+Running a number of PCA charts coded by response does not appear to show a clean discriminant that we can use to do regression on the Principal Components. Principal component 1 (PC1) does show some ability to distinguish against PC2, but there is still significant overlap. This indicates that these 5 continuous predictors may not perform well in a classfication model. Additional continuous predictors may help improve the performance of our model. The categorical predictors might have greater influence to differentiate with interaction terms. 
 
 Looking at the weighting on the principal components: 
 
@@ -269,7 +274,12 @@ Looking at the weighting on the principal components:
 pcomps$rotation
 ```
 
-In looking at this table, we can see that each variable contributes a significant amount in at least one of the Principal Components. This is a good indication that the variables are not correlated with each other and that each might contribute something unique to our model. 
+In looking at this table, we can see that each variable contributes a significant amount in at least one of the Principal Components. This is a good indication that the variables are not correlated with each other and that each might contribute something unique to our model.
+  * PC1 seems to be a contrast between age and thalach.
+  * PC2 seems to be largely influenced by chol, thalach, and trestbps.
+  * PC3 seems to be a contrast between trestbps and chol.
+  * PC4 seems to be a contrast between age and oldpeak.
+  * PC5 seems to be largely influenced by age and thalach.
 
 # Prep for Analysis
 
@@ -278,12 +288,18 @@ I considered doing a Train / Test split on the data, but think that we might try
 ```{r echo = FALSE, message = FALSE}
 library(caret) 
 
+levels(heart$target) = c("No","Yes")
 #define the training control method for the model -- This is the cross validation. 
-train_control = trainControl(method = "cv", number = 10)
+train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
 
 #fit the simple model using all the variables
-simple_model = train(target~., data = heart, trControl = train_control, method = "glm", family = "binomial")
+simple_model = train(target~., data = heart, trControl = train_control, method = "glm", metric = "ROC", family = "binomial")
 
+#plot the ROC curve
+testroc = roc(predictor = simple_model$pred$Yes, response = simple_model$pred$obs, levels = rev(levels(simple_model$pred$obs)))
+
+plot(testroc, type = "S")
+text(x = .40, y = .6,paste("AUC = ", round(testroc$auc, 3)))
 ```
 
 and the coefficients: 
@@ -298,6 +314,8 @@ Run the Hosmer / Lemeshow GOF test on the simple model:
 #bring in model software
 library(ResourceSelection)
 hoslem.test(heart$target, fitted(simple_model), g = 10)
+## heart$target does not produce numeric vector of binary observations 
+## if we are going to move forward with this code then we need to change target to binary (0/1)
 ```
 
 Get the odds ratio and confidence intervals for the simple model
