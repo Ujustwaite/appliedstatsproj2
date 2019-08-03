@@ -27,6 +27,8 @@ library(gplots)
 library(ggplot2)
 library(GGally)
 library(caret)
+library(PredPsych)
+library(pROC)
 
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
@@ -278,12 +280,18 @@ I considered doing a Train / Test split on the data, but think that we might try
 ```{r echo = FALSE, message = FALSE}
 library(caret) 
 
+levels(heart$target) = c("No","Yes")
 #define the training control method for the model -- This is the cross validation. 
-train_control = trainControl(method = "cv", number = 10)
+train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
 
 #fit the simple model using all the variables
-simple_model = train(target~., data = heart, trControl = train_control, method = "glm", family = "binomial")
+simple_model = train(target~., data = heart, trControl = train_control, method = "glm", metric = "ROC", family = "binomial")
 
+#plot the ROC curve
+testroc = roc(predictor = simple_model$pred$Yes, response = simple_model$pred$obs, levels = rev(levels(simple_model$pred$obs)))
+
+plot(testroc, type = "S")
+text(x = .40, y = .6,paste("AUC = ", round(testroc$auc, 3)))
 ```
 
 and the coefficients: 
