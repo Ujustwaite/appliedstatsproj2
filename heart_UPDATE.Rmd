@@ -26,9 +26,13 @@ library(car)
 library(gplots)
 library(ggplot2)
 library(GGally)
+library(generalhoslem)
 library(caret)
 library(PredPsych)
 library(pROC)
+library(tree)
+library(randomForest)
+library(ROCR)
 
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
@@ -191,8 +195,8 @@ scatterplotMatrix(x = heart[,-c(2,3,6,7,9,11,12,13)],
 
 ```
 
-## Let's try to do some PCA: 
 
+## Let's try to do some PCA: 
 
 ```{r include = FALSE}
 #Get only the continuous variables
@@ -280,6 +284,8 @@ In looking at this table, we can see that each variable contributes a significan
   * PC3 seems to be a contrast between trestbps and chol.
   * PC4 seems to be a contrast between age and oldpeak.
   * PC5 seems to be largely influenced by age and thalach.
+<br>
+<br>
 
 # Prep for Analysis
 
@@ -311,60 +317,171 @@ simple_model$finalModel
 Run the Hosmer / Lemeshow GOF test on the simple model: 
 
 ```{r}
-#bring in model software
-library(ResourceSelection)
-hoslem.test(heart$target, fitted(simple_model), g = 10)
-## heart$target does not produce numeric vector of binary observations 
-## if we are going to move forward with this code then we need to change target to binary (0/1)
+library(generalhoslem)
+logitgof(heart$target, fitted(simple_model))
 ```
 
 Get the odds ratio and confidence intervals for the simple model
-```{r}
 
+```{r}
 #odds ratio and confidence interval for the odds ratio
 exp(cbind("Odds ratio" = coef(simple_model$finalModel), confint.default(simple_model$finalModel, level = 0.95)))
 
 #Variance Inflation Factor (VIF)
 vif(simple_model$finalModel)
-
 ```
+<br>
+<br>
 
-Note that we didn't do any feature selection here, so let's try to add that in with Stepwise AIC based feature selection: 
+# Stepwise Feature Selection (AIC-based): 
 
-```{r echo = FALSE, message = FALSE}
+```{r Stepwise Feature Selection of Simple Logistic Regression Model, echo = FALSE, message = FALSE}
+levels(heart$target) = c("No","Yes")
+#define the training control method for the model -- This is the cross validation. 
+train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
+
 #This line makes a lot of output when knitted
-simple_model_stepwise = train(target~., data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+simple_model_stepwise = train(target~., data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial", metric = "ROC")
 
 simple_model_stepwise$finalModel$coefficients
 
 simple_model_stepwise$results
+
+# Hosmer-Lemeshow Goodness of Fit Test
+logitgof(heart$target, fitted(simple_model_stepwise))
+
+# Model Assumptions and Diagnostics
+par(mfrow = c(2,2))
+plot(simple_model_stepwise$finalModel)
+
+# Odds Ratio and Confidence Intervals
+exp(cbind("Odds ratio" = coef(simple_model_stepwise$finalModel), confint.default(simple_model_stepwise$finalModel, level = 0.95)))
+
+#Variance Inflation Factor (VIF)
+vif(simple_model_stepwise$finalModel)
+
+# Plot the ROC-AUC curve
+par(mfrow = c(1,1))
+testroc <- roc(predictor = simple_model_stepwise$pred$Yes, response = simple_model_stepwise$pred$obs, levels = rev(levels(simple_model_stepwise$pred$obs)),
+              smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
+```
+<br>
+<br>
+
+# Decision Tree on Simple Stepwise Model:
+
+``` {r Decision Tree}
+
+# Training (66%) /Test (33%) Split
+set.seed(777)
+heart.train <- sample(1:nrow(heart), 202)
+heart.test <- heart[-heart.train,]
+# Independent response to compare prediction performance on test set
+response.test <- target[-heart.train]
+
+# Decision Tree based off Stepwise Feature Selection of Logistic Regression Model
+heart.tree <- tree(target ~ thal + ca + cp + sex + trestbps + exang + oldpeak + slope, data = heart, subset = heart.train)
+summary(heart.tree)
+plot(heart.tree)
+text(heart.tree)
+
+# Cross-validate to determine optimal Pruned Tree
+cv.heart <- cv.tree(heart.tree,FUN=prune.misclass)
+cv.heart
+
+# Smallest Misclassifcation Rate from size 6-8
+plot(cv.heart)
+
+# Prune Tree to Optimized Number of Nodes (8)
+prune.heart <- prune.tree(heart.tree, best=8)
+plot(prune.heart)
+text(prune.heart,pretty=0)
+
+# Predict on Test Set
+heart.tree_pred <- predict(prune.heart, heart.test, type="class")
+table(heart.tree_pred, response.test)
+
+# Performance Metrics
+TN <- 38
+TP <- 39
+FN <- 12
+FP <- 12
+Total <- TN + TP + FN + FP
+## Accuracy
+acc <- (TP+TN)/Total
+acc
+## Sensitivity
+sen <- TP/(TP+FN)
+sen
+## Specificity
+spe <- TN/(TN+FP)
+spe
+
+# ROC Curve for Single Tree
+tree.pred <- predict(prune.heart,heart.test,type="vector")
+
+pred <- prediction(tree.pred[,2], heart.test$target)
+roc.perf <-  performance(pred, measure = "tpr", x.measure = "fpr")
+auc <- performance(pred, measure = "auc")
+auc <- auc@y.values
+plot(roc.perf, main= "AUC of Test Set for a Single Tree")
+abline(a=0, b= 1)
+text(x = .40, y = .6, paste("AUC = ", round(auc[[1]],3), sep = ""))
 ```
 
-Just to try another selection algorithm, used "LogitBoost" from the Caret library. It doesn't consistently outperform the simpler stepwise selection or "all-in" methods. We haven't learned the interpretation for this model.  
+The decision tree shows that thal, cp, and ca may be most important predictors for heart disease. Consider interaction terms for these variables in more complex model. From the optimized prune tree, oldpeak and sex also seems to influence classification of heart disease.
+<br>
 
-```{r echo = FALSE, message = FALSE}
-simple_model_boost = train(target~., data = heart, trControl = train_control, method = "LogitBoost", family = "binomial")
+# Random Forests on Simple Stepwise Model:
 
-simple_model_boost$finalModel
+``` {r Random Forest}
+# Random Forest based off Stepwise Feature Selection of Logistic Regression Model
+## 4 predictors chosen to be sampled for each bootstrap sample (mtry = 4)
+RF.heart <- randomForest(target ~ thal + ca + cp + sex + trestbps + exang + oldpeak + slope, data = heart, subset = heart.train,
+                         mtry = 4, importance = TRUE, ntree = 100)
 
-simple_model_boost$results
+# Predict on Test Set
+RF.pred <- predict(RF.heart, newdata=heart.test, type="response")
+table(RF.pred,heart.test$target)
+
+# Performance Metrics
+TN <- 43
+TP <- 39
+FN <- 7
+FP <- 12
+Total <- TN + TP + FN + FP
+## Accuracy
+acc <- (TP+TN)/Total
+acc
+## Sensitivity
+sen <- TP/(TP+FN)
+sen
+## Specificity
+spe <- TN/(TN+FP)
+spe
+
+# ROC Curve for Random Forest
+RF.pred <- predict(RF.heart, newdata=heart.test, type="prob")
+pred <- prediction(RF.pred[,2], heart.test$target)
+roc.perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+auc <- performance(pred, measure = "auc")
+auc <- auc@y.values
+plot(roc.perf, main="AUC of Test set for Random Forest (4 predictors per bootstrap)")
+abline(a=0, b= 1)
+text(x = .40, y = .6,paste("AUC = ", round(auc[[1]],3), sep = ""))
 ```
 
-Elasticnet: 
+Random Forest provided better perfomance metrics than Decision Tree using 4 predictors per bootsrap sample. AUC = 0.891 in Random Forest compared to AUC = 0.838 from Decision Tree.
 
-```{r echo = FALSE, message = FALSE}
+``` {r Variable Importance}
+# MeanDecreaseAccuracy impurity metric: amount RSS is decreased due to splits over a given predictor (primarily used for bagged regression trees)
+varImpPlot (RF.heart,type=1,main="Variable Importance")
 
-#define the training control method for the model -- This is the cross validation. 
-train_control = trainControl(method = "cv", number = 10)
-
-#fit the simple model using all the variables
-simple_model_elastic = train(target~., data = heart, trControl = train_control, method = "glmnet", family = "binomial")
-
-#odds ratio and confidence interval for the odds ratio
-odds_ratio_elastic = exp(coef(simple_model_elastic$finalModel, simple_model_elastic$bestTune$lambda))
-odds_ratio_elastic
-
+# MeanDecreaseGini impurity metric: amount Gini index is decreased by splits over a given predictor (primarily used for bagged classification trees)
+varImpPlot (RF.heart,type=2,main="Variable Importance")
 ```
+<br>
+<br>
 
 # More complex model
 
@@ -395,6 +512,37 @@ heart_lda = LinearDA(Data = as.data.frame(heartcont), selectedCols = c("age","tr
 heart_lda$ConfusionMatrixResults
 
 ```
+<br>
+<br>
+ 
+
+Just to try another selection algorithm, used "LogitBoost" from the Caret library. It doesn't consistently outperform the simpler stepwise selection or "all-in" methods. We haven't learned the interpretation for this model.  
+
+```{r echo = FALSE, message = FALSE}
+simple_model_boost = train(target~., data = heart, trControl = train_control, method = "LogitBoost", family = "binomial")
+
+simple_model_boost$finalModel
+
+simple_model_boost$results
+```
+
+Elasticnet: 
+
+```{r echo = FALSE, message = FALSE}
+
+#define the training control method for the model -- This is the cross validation. 
+train_control = trainControl(method = "cv", number = 10)
+
+#fit the simple model using all the variables
+simple_model_elastic = train(target~., data = heart, trControl = train_control, method = "glmnet", family = "binomial")
+
+#odds ratio and confidence interval for the odds ratio
+odds_ratio_elastic = exp(coef(simple_model_elastic$finalModel, simple_model_elastic$bestTune$lambda))
+odds_ratio_elastic
+
+```
+
+
 # Appendix A: 
 
 
