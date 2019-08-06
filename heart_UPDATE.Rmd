@@ -311,11 +311,8 @@ simple_model$finalModel
 Run the Hosmer / Lemeshow GOF test on the simple model: 
 
 ```{r}
-#bring in model software
-library(ResourceSelection)
-hoslem.test(heart$target, fitted(simple_model), g = 10)
-## heart$target does not produce numeric vector of binary observations 
-## if we are going to move forward with this code then we need to change target to binary (0/1)
+library(generalhoslem)
+logitgof(heart$target, fitted(simple_model))
 ```
 
 Get the odds ratio and confidence intervals for the simple model
@@ -338,6 +335,8 @@ simple_model_stepwise = train(target~., data = heart, trControl = train_control,
 simple_model_stepwise$finalModel$coefficients
 
 simple_model_stepwise$results
+
+logitgof(heart$target, fitted(simple_model_stepwise))
 ```
 
 Just to try another selection algorithm, used "LogitBoost" from the Caret library. It doesn't consistently outperform the simpler stepwise selection or "all-in" methods. We haven't learned the interpretation for this model.  
