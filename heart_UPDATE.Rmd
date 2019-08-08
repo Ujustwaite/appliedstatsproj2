@@ -391,7 +391,7 @@ text(heart.tree)
 cv.heart <- cv.tree(heart.tree,FUN=prune.misclass)
 cv.heart
 
-# Smallest Misclassifcation Rate from size 6-8
+# Smallest Misclassifcation Rate from size 8-13
 plot(cv.heart)
 
 # Prune Tree to Optimized Number of Nodes (8)
