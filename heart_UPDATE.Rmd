@@ -33,6 +33,8 @@ library(pROC)
 library(tree)
 library(randomForest)
 library(ROCR)
+library(heplots)
+library(MASS)
 
 #Requires setwd() to the current directory with heart.csv
 heart <- read_csv("heart.csv")
@@ -504,14 +506,47 @@ complex_model_elasticnet = train(target~age + sex + cp + trestbps + chol + fbs +
 
 Let's run an LDA model on the continuous variables and see how the model performs: 
 
-```{r}
+```{r Discriminant Analysis}
+# Assumptions are Multivariate Normally Distributed Residual and Equal Covariance Matricies
+## Histogram of logged oldpeak predictor improves normality
+
 #Run the LDA
 heart_lda = LinearDA(Data = as.data.frame(heartcont), selectedCols = c("age","trestbps", "chol", "thalach", "oldpeak", "target"), classCol = 6, cvType = "folds", nTrainFolds = 10, extendedResults = TRUE)
 
 #output the results
 heart_lda$ConfusionMatrixResults
 
+
+# Box's M-Test for homogeneity of covariance matricies (test requires multivariate normal data)
+## Did not work for simply logging oldpeak, since any obserations with 0 resulted in undefined value from the transformation (no p-value provided)
+# res <- boxM(cbind(age,trestbps,chol,thalach,log(oldpeak)) ~ target, data = heart)
+
+# Alternative check to covariance assumption through visualization of Covariance Ellipses
+covEllipses(heart[,c("age","trestbps","chol","thalach","oldpeak")], heart$target, 
+            fill=c(rep(FALSE,3), TRUE), variables=1:5, fill.alpha=.1)
+
+# Build QDA model due to violation of homogeneous covariance matricies
+heart.qda <- qda(target ~ age + trestbps + chol + thalach + oldpeak, CV = TRUE, data = heart)
+table(heart$target, heart.qda$class, dnn = c('Actual Group','Predicted Group'))
+
+# Performance Metrics
+TN <- 85
+TP <- 136
+FN <- 29
+FP <- 53
+Total <- TN + TP + FN + FP
+## Accuracy
+acc <- (TP+TN)/Total
+acc
+## Sensitivity
+sen <- TP/(TP+FN)
+sen
+## Specificity
+spe <- TN/(TN+FP)
+spe
 ```
+The LDA/QDA models will not perform as well logistic regression model. QDA should be used in favor of LDA model since assumptions of equal covariance matrix is violated as shown in the Covariance Ellipses Matrix. However, the assumption of multivariate normally distributed data is also violated with oldpeak predictor, so logistic regression model should be used in favor of QDA for classification of heart disease.
+
 <br>
 <br>
  
