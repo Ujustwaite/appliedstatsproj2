@@ -485,6 +485,24 @@ varImpPlot (RF.heart,type=2,main="Variable Importance")
 <br>
 <br>
 
+# Brian Test Random Forest with Caret and Cross Validation
+
+```{r}
+control = trainControl(method = "repeatedcv", number = 10, repeats= 3, search = "random", classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
+set.seed(7)
+mtry = sqrt(ncol(heart)-1)
+rf_random = train(target~thal + ca + cp + sex + trestbps + exang + oldpeak + slope, data = heart, method = "rf", metric = "Accuracy", tuneLength = 15)
+print(rf_random)
+plot(rf_random)
+plot(rf_random$finalModel)
+
+
+#plot the ROC curve
+testroc2 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, response = rf_random$finalModel$y, levels = rev(levels(rf_random$finalModel$y)))
+
+plot(testroc2, type = "S")
+text(x = .40, y = .6,paste("AUC = ", round(testroc2$auc, 3)))
+```
 # More complex model
 
 ```{r echo = FALSE, message = FALSE}
