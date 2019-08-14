@@ -507,12 +507,11 @@ testroc3 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, respon
 plot(testroc3, type = "S")
 text(x = .40, y = .6,paste("AUC = ", round(testroc4$auc, 3)))
 
-
 #Variable Importance
 
 varImp(rf_random$finalModel)
-
 varImpPlot(rf_random$finalModel)
+
 ```
 # More complex model
 
@@ -524,6 +523,7 @@ train_control = trainControl(method = "cv", number = 10)
 #fit the complex model using all the variables and some guessed interaction terms
 #gives accuracy improvement
 #complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+
 
 #get the roc curve
 train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
