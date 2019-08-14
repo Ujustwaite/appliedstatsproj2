@@ -509,9 +509,15 @@ testroc4 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, respon
 
 plot(testroc4, type = "S")
 text(x = .40, y = .6,paste("AUC = ", round(testroc4$auc, 3)))
+<<<<<<< HEAD
 
 #Variable Importance
 
+=======
+
+#Variable Importance
+
+>>>>>>> 030ca01fa3cfae33664981cb61a555ac18a56060
 varImp(rf_random$finalModel)
 
 varImpPlot(rf_random$finalModel)
@@ -526,14 +532,22 @@ train_control = trainControl(method = "cv", number = 10)
 
 #fit the complex model using all the variables and some guessed interaction terms
 #gives accuracy improvement
+<<<<<<< HEAD
 #complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+=======
+complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+>>>>>>> 030ca01fa3cfae33664981cb61a555ac18a56060
 
 #get the roc curve
 train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
 
 complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial", metric = "ROC")
 
+<<<<<<< HEAD
 testroc3 <- roc(predictor = complex_model$pred$Yes, response = complex_model$pred$obs, levels = rev(levels(complex_model$pred$obs)),
+=======
+testroc3 <- roc(predictor = simple_model_stepwise$pred$Yes, response = simple_model_stepwise$pred$obs, levels = rev(levels(simple_model_stepwise$pred$obs)),
+>>>>>>> 030ca01fa3cfae33664981cb61a555ac18a56060
               smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 
 
