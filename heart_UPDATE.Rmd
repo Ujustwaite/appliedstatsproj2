@@ -370,9 +370,6 @@ par(mfrow = c(1,1))
 testroc2 <- roc(predictor = simple_model_stepwise$pred$Yes, response = simple_model_stepwise$pred$obs, levels = rev(levels(simple_model_stepwise$pred$obs)),
               smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 
-
-
-
 ```
 <br>
 <br>
@@ -505,10 +502,11 @@ plot(rf_random$finalModel)
 
 
 #plot the ROC curve
-testroc4 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, response = rf_random$finalModel$y, levels = rev(levels(rf_random$finalModel$y)))
+testroc3 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, response = rf_random$finalModel$y, levels = rev(levels(rf_random$finalModel$y)))
 
-plot(testroc4, type = "S")
+plot(testroc3, type = "S")
 text(x = .40, y = .6,paste("AUC = ", round(testroc4$auc, 3)))
+
 
 #Variable Importance
 
@@ -519,7 +517,6 @@ varImpPlot(rf_random$finalModel)
 # More complex model
 
 ```{r echo = FALSE, message = FALSE}
-
 
 #define the training control method for the model -- This is the cross validation. 
 train_control = trainControl(method = "cv", number = 10)
@@ -533,7 +530,7 @@ train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, save
 
 complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial", metric = "ROC")
 
-testroc3 <- roc(predictor = complex_model$pred$Yes, response = complex_model$pred$obs, levels = rev(levels(complex_model$pred$obs)),
+testroc4 <- roc(predictor = complex_model$pred$Yes, response = complex_model$pred$obs, levels = rev(levels(complex_model$pred$obs)),
               smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 
 
@@ -554,7 +551,7 @@ complex_model2 = train(target~ thal + ca + cp + sex + trestbps + exang + oldpeak
 complex_model2$results
 
 #plot the ROC curve
-testroc3 <- roc(predictor = complex_model2$pred$Yes, response = complex_model2$pred$obs, levels = rev(levels(complex_model2$pred$obs)),
+testroc5 <- roc(predictor = complex_model2$pred$Yes, response = complex_model2$pred$obs, levels = rev(levels(complex_model2$pred$obs)),
               smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 ```
 
