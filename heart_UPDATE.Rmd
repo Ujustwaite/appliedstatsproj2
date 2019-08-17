@@ -74,6 +74,8 @@ vartable$usage[14] = "Response"
 names(vartable) = c("Variable","Description","Units or Value","Usage")
 kable(vartable) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
+
+knitr::kable(summary(heart))
 ```
 
 
@@ -505,7 +507,7 @@ plot(rf_random$finalModel)
 testroc3 = roc(predictor = as.data.frame(rf_random$finalModel$votes)$Yes, response = rf_random$finalModel$y, levels = rev(levels(rf_random$finalModel$y)))
 
 plot(testroc3, type = "S")
-text(x = .40, y = .6,paste("AUC = ", round(testroc4$auc, 3)))
+text(x = .40, y = .6,paste("AUC = ", round(testroc3$auc, 3)))
 
 #Variable Importance
 
@@ -530,8 +532,7 @@ train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, save
 
 complex_model = train(target~age + sex + cp + trestbps + chol + fbs + restecg + thalach + exang + log(oldpeak+.01) + slope + ca + thal + oldpeak*trestbps + oldpeak*age , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial", metric = "ROC")
 
-testroc4 <- roc(predictor = complex_model$pred$Yes, response = complex_model$pred$obs, levels = rev(levels(complex_model$pred$obs)),
-              smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
+#testroc4 <- roc(predictor = complex_model$pred$Yes, response = complex_model$pred$obs, levels = rev(levels(complex_model$pred$obs)),smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 
 
 #fit the complex model using all the variables and elasticnet selection. Does better than simple, but hit or miss as to whether better than our guessed fit. 
@@ -546,14 +547,17 @@ levels(heart$target) = c("No","Yes")
 train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
 
 #fit the simple model using all the variables
-complex_model2 = train(target~ thal + ca + cp + sex + trestbps + exang + oldpeak + slope + thal*oldpeak + trestbps*exang, data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
+complex_model2 = train(target~ thal + ca + cp + sex + trestbps + exang + oldpeak + slope + thal*oldpeak , data = heart, trControl = train_control, method = "glmStepAIC", family = "binomial")
 
 complex_model2$results
 
 #plot the ROC curve
-testroc5 <- roc(predictor = complex_model2$pred$Yes, response = complex_model2$pred$obs, levels = rev(levels(complex_model2$pred$obs)),
-              smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
+testroc5 <- roc(predictor = complex_model2$pred$Yes, response = complex_model2$pred$obs, levels = rev(levels(complex_model2$pred$obs)), smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
+
 ```
+
+
+
 
 # LDA
 
@@ -574,7 +578,7 @@ heart_lda$ConfusionMatrixResults
 ## Did not work for simply logging oldpeak, since any obserations with 0 resulted in undefined value from the transformation (no p-value provided)
 # res <- boxM(cbind(age,trestbps,chol,thalach,log(oldpeak)) ~ target, data = heart)
 
-#You can run this if you just add a small value to oldpeak
+#You can run this if you just add a small value to oldpeak, but the result is still non-normal. 
 boxM(cbind(age,trestbps,chol,thalach,log(oldpeak+0.01)) ~ target, data = heart)
 
 # Alternative check to covariance assumption through visualization of Covariance Ellipses
@@ -585,6 +589,8 @@ covEllipses(heart[,c("age","trestbps","chol","thalach","oldpeak")], heart$target
 heart.qda <- qda(target ~ age + trestbps + chol + thalach + oldpeak, CV = TRUE, data = heart)
 table(heart$target, heart.qda$class, dnn = c('Actual Group','Predicted Group'))
 
+
+testroc6 <- roc(predictor = heart.qda$posterior[,2], response = heart$target, levels = rev(levels(heart$target)), smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 # Performance Metrics
 TN <- 85
 TP <- 136
@@ -615,6 +621,8 @@ simple_model_boost = train(target~., data = heart, trControl = train_control, me
 simple_model_boost$finalModel
 
 simple_model_boost$results
+
+testroc5 <- roc(predictor = simple_model_boost$pred$Yes, response = simple_model_boost$pred$obs, levels = rev(levels(simple_model_boost$pred$obs)), smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 ```
 
 Elasticnet: 
@@ -622,7 +630,7 @@ Elasticnet:
 ```{r echo = FALSE, message = FALSE}
 
 #define the training control method for the model -- This is the cross validation. 
-train_control = trainControl(method = "cv", number = 10)
+train_control = trainControl(method = "cv", number = 10, classProbs = TRUE, savePredictions = TRUE, summaryFunction = twoClassSummary)
 
 #fit the simple model using all the variables
 simple_model_elastic = train(target~., data = heart, trControl = train_control, method = "glmnet", family = "binomial")
@@ -630,6 +638,8 @@ simple_model_elastic = train(target~., data = heart, trControl = train_control, 
 #odds ratio and confidence interval for the odds ratio
 odds_ratio_elastic = exp(coef(simple_model_elastic$finalModel, simple_model_elastic$bestTune$lambda))
 odds_ratio_elastic
+
+testroc5 <- roc(predictor = simple_model_elastic$pred$Yes, response = simple_model_elastic$pred$obs, levels = rev(levels(simple_model_elastic$pred$obs)), smoothed=FALSE, ci=FALSE, plot=TRUE, print.auc=TRUE)
 
 ```
 
